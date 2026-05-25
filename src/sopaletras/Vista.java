@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * VISTA - Interfaz gráfica con Swing.
- * Incluye selección letra a letra para resolver la sopa.
+ * Incluye selección letra a letra, botón solución y botón buscar palabra.
  */
 public class Vista extends JFrame {
 
@@ -18,7 +18,9 @@ public class Vista extends JFrame {
     private JButton btnEliminar;
     private JButton btnConsultar;
     private JButton btnGenerar;
-    private JButton btnLimpiar;             
+    private JButton btnLimpiar;
+    private JButton btnSolucion;    //Muestra todas las palabras en verde
+    private JButton btnBuscar;      //Busca y marca una palabra concreta
     private JList<String> listaPalabras;
     private DefaultListModel<String> modeloLista;
     private JPanel panelSopa;
@@ -31,18 +33,24 @@ public class Vista extends JFrame {
     private List<JLabel> seleccionadas = new ArrayList<>();
     private String palabraSeleccionada = "";
 
-    //Lista de palabras de la BD (para comprobar si acertó)
+    //Lista de palabras de la BD (para comprobar aciertos y mostrar solución)
     private List<String> palabrasDB = new ArrayList<>();
+
+    //Matriz actual de la sopa (para buscar palabras)
+    private String[][] matrizActual;
 
     public Vista() {
         setTitle("Sopa de Letras");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(950, 650);
+        setSize(950, 680);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
         add(crearPanelIzquierdo(), BorderLayout.WEST);
         add(crearPanelDerecho(),   BorderLayout.CENTER);
+
+        //Bloquea pegar texto en el campo para evitar caracteres inválidos
+        campoPalabra.setTransferHandler(null);
 
         setVisible(true);
     }
@@ -77,11 +85,21 @@ public class Vista extends JFrame {
         btnLimpiar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
         btnLimpiar.addActionListener(e -> limpiarSeleccion());
 
+        //Botón para buscar una palabra concreta en la sopa
+        btnBuscar = new JButton("Buscar Palabra");
+        btnBuscar.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btnBuscar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+
+        //Botón para mostrar la solución completa
+        btnSolucion = new JButton("Ver Solución");
+        btnSolucion.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btnSolucion.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+
         modeloLista   = new DefaultListModel<>();
         listaPalabras = new JList<>(modeloLista);
         JScrollPane scrollLista = new JScrollPane(listaPalabras);
         scrollLista.setAlignmentX(Component.LEFT_ALIGNMENT);
-        scrollLista.setPreferredSize(new Dimension(180, 250));
+        scrollLista.setPreferredSize(new Dimension(180, 200));
 
         panel.add(lblPalabra);
         panel.add(Box.createVerticalStrut(5));
@@ -92,6 +110,10 @@ public class Vista extends JFrame {
         panel.add(btnConsultar);
         panel.add(Box.createVerticalStrut(5));
         panel.add(btnLimpiar);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(btnBuscar);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(btnSolucion);
         panel.add(Box.createVerticalStrut(10));
         panel.add(scrollLista);
 
@@ -115,7 +137,7 @@ public class Vista extends JFrame {
                 JLabel lbl = new JLabel("·", SwingConstants.CENTER);
                 lbl.setFont(new Font("Monospaced", Font.BOLD, 14));
                 lbl.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-                lbl.setOpaque(true); // Necesario para que el color de fondo funcione
+                lbl.setOpaque(true); //Necesario para que el color de fondo funcione
 
                 //Guardamos fila y columna en el nombre para identificar la celda
                 lbl.setName(f + "," + c);
@@ -140,15 +162,20 @@ public class Vista extends JFrame {
     }
 
     //Lógica de selección letra a letra
+    //Si la secuencia forma una palabra de la BD se marca en verde
     private void seleccionarLetra(JLabel lbl) {
+        //Si la letra ya está en verde (encontrada) no hacemos nada
         if (lbl.getBackground() == Color.GREEN) return;
 
+        //Marcamos en azul y añadimos a la selección
         lbl.setBackground(Color.CYAN);
         seleccionadas.add(lbl);
         palabraSeleccionada += lbl.getText();
 
+        //Comprobamos si la selección forma una palabra de la BD
         for (String palabra : palabrasDB) {
             if (palabraSeleccionada.equalsIgnoreCase(palabra)) {
+                //Palabra encontrada, la marcamos en verde
                 for (JLabel l : seleccionadas) {
                     l.setBackground(Color.GREEN);
                 }
@@ -159,7 +186,7 @@ public class Vista extends JFrame {
         }
     }
 
-    //Limpia la selección actual (letras en azul vuelven a blanco)
+    //Limpia la selección actual (letras en azul vuelven a su color original)
     private void limpiarSeleccion() {
         for (JLabel l : seleccionadas) {
             l.setBackground(null);
@@ -168,17 +195,78 @@ public class Vista extends JFrame {
         palabraSeleccionada = "";
     }
 
-    //Métodos públicos usados desde Main
+    //Busca una palabra en la matriz y la marca en naranja
+    public void buscarYMarcarPalabra(String palabra) {
+        if (matrizActual == null) return;
+        String[] word = palabra.toUpperCase().split("");
+        int L = word.length;
+        boolean encontrada = false;
+
+        //Recorremos toda la matriz buscando la primera letra
+        for (int f = 0; f < FILAS && !encontrada; f++) {
+            for (int c = 0; c < COLUMNAS && !encontrada; c++) {
+                if (!matrizActual[f][c].equals(word[0])) continue;
+
+                //Probamos las 8 direcciones desde esta celda
+                int[][] dirs = {{0,1},{1,1},{1,0},{1,-1},{0,-1},{-1,-1},{-1,0},{-1,1}};
+                for (int[] dir : dirs) {
+                    List<int[]> celdas = new ArrayList<>();
+                    boolean ok = true;
+                    for (int t = 0; t < L; t++) {
+                        int nf = f + dir[0] * t;
+                        int nc = c + dir[1] * t;
+                        if (nf < 0 || nf >= FILAS || nc < 0 || nc >= COLUMNAS) { ok = false; break; }
+                        if (!matrizActual[nf][nc].equals(word[t])) { ok = false; break; }
+                        celdas.add(new int[]{nf, nc});
+                    }
+                    if (ok) {
+                        //Marcamos las celdas en naranja
+                        for (int[] celda : celdas) {
+                            etiquetas[celda[0]][celda[1]].setBackground(Color.ORANGE);
+                        }
+                        encontrada = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!encontrada) {
+            mostrarMensaje("La palabra '" + palabra + "' no se encontró en la sopa.");
+        }
+    }
+
+    //Muestra la solución completa marcando todas las palabras en verde
+    public void mostrarSolucion() {
+        for (String palabra : palabrasDB) {
+            buscarYMarcarPalabra(palabra);
+            //Marcamos en verde en vez de naranja para la solución completa
+        }
+        //Recorremos y cambiamos naranja por verde
+        for (int f = 0; f < FILAS; f++) {
+            for (int c = 0; c < COLUMNAS; c++) {
+                if (etiquetas[f][c].getBackground() == Color.ORANGE) {
+                    etiquetas[f][c].setBackground(Color.GREEN);
+                }
+            }
+        }
+    }
+
     //Actualiza las palabras de la BD para poder comprobar aciertos
     public void setPalabrasDB(List<String> palabras) {
         this.palabrasDB = palabras;
     }
 
+    //Guarda la matriz actual para poder buscar palabras en ella
+    public void setMatrizActual(String[][] matriz) {
+        this.matrizActual = matriz;
+    }
+
     public void mostrarSopa(String[][] matriz) {
+        this.matrizActual = matriz; //Guardamos la matriz para búsquedas
         for (int f = 0; f < FILAS; f++) {
             for (int c = 0; c < COLUMNAS; c++) {
                 etiquetas[f][c].setText(matriz[f][c]);
-                etiquetas[f][c].setBackground(null); // Resetea colores al generar nueva sopa
+                etiquetas[f][c].setBackground(null); //Resetea colores al generar nueva sopa
                 etiquetas[f][c].setForeground(Color.BLACK);
             }
         }
@@ -211,4 +299,6 @@ public class Vista extends JFrame {
     public void addListenerEliminar(ActionListener al)  { btnEliminar.addActionListener(al); }
     public void addListenerConsultar(ActionListener al) { btnConsultar.addActionListener(al); }
     public void addListenerGenerar(ActionListener al)   { btnGenerar.addActionListener(al); }
+    public void addListenerBuscar(ActionListener al)    { btnBuscar.addActionListener(al); }
+    public void addListenerSolucion(ActionListener al)  { btnSolucion.addActionListener(al); }
 }

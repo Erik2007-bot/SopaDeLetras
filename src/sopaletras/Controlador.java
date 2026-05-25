@@ -13,46 +13,86 @@ public class Controlador {
 
     private String[][] M;
     private int[][]    H;
+    
+    //Guardamos las posiciones de cada palabra para mostrar la solución
+    private List<String> ultimasPalabras;
 
     public Controlador() {
         M = new String[FILAS][COLUMNAS];
         H = new int[FILAS][COLUMNAS];
     }
 
-    // Genera la sopa con las palabras que vienen de la BD
+    //Genera la sopa con las palabras que vienen de la BD
     public String[][] generarSopa(List<String> palabras) {
         M = new String[FILAS][COLUMNAS];
         H = new int[FILAS][COLUMNAS];
         inicializaMatrices();
+        ultimasPalabras = palabras;
 
         for (String palabra : palabras) {
             String[] word = palabra.toUpperCase().split("");
+
+            //Si la palabra es más larga que la matriz no se puede colocar
+            if (word.length > COLUMNAS && word.length > FILAS) {
+                System.out.println("AVISO: La palabra '" + palabra + "' es demasiado larga.");
+                continue;
+            }
+
             boolean colocado = false;
-            int intentos = 0;
-            while (!colocado && intentos < 100) {
-                int orientacion = azar(8);
-                switch (orientacion) {
-                    case 0: colocado = colocarPalabra0(word); break;
-                    case 1: colocado = colocarPalabra1(word); break;
-                    case 2: colocado = colocarPalabra2(word); break;
-                    case 3: colocado = colocarPalabra3(word); break;
-                    case 4: colocado = colocarPalabra4(word); break;
-                    case 5: colocado = colocarPalabra5(word); break;
-                    case 6: colocado = colocarPalabra6(word); break;
-                    case 7: colocado = colocarPalabra7(word); break;
+            //Probamos todas las orientaciones posibles en orden aleatorio
+            //Sin límite arbitrario: paramos cuando se coloca o cuando
+            //se han probado todas las combinaciones posibles
+            int[] orientaciones = {0, 1, 2, 3, 4, 5, 6, 7};
+            mezclar(orientaciones);
+
+            for (int o : orientaciones) {
+                if (colocado) break;
+                //Intentamos varias posiciones para cada orientación
+                for (int intento = 0; intento < FILAS * COLUMNAS; intento++) {
+                    switch (o) {
+                        case 0: colocado = colocarPalabra0(word); break;
+                        case 1: colocado = colocarPalabra1(word); break;
+                        case 2: colocado = colocarPalabra2(word); break;
+                        case 3: colocado = colocarPalabra3(word); break;
+                        case 4: colocado = colocarPalabra4(word); break;
+                        case 5: colocado = colocarPalabra5(word); break;
+                        case 6: colocado = colocarPalabra6(word); break;
+                        case 7: colocado = colocarPalabra7(word); break;
+                    }
+                    if (colocado) break;
                 }
-                intentos++;
+            }
+
+            if (!colocado) {
+                System.out.println("AVISO: No se pudo colocar: " + palabra);
             }
         }
         return M;
     }
 
+    //Mezcla un array de orientaciones para probarlas en orden aleatorio
+    private void mezclar(int[] array) {
+        for (int i = array.length - 1; i > 0; i--) {
+            int j = azar(i + 1);
+            int temp = array[i];
+            array[i] = array[j];
+            array[j] = temp;
+        }
+    }
+
+    //Devuelve la última lista de palabras usada (para mostrar solución)
+    public List<String> getUltimasPalabras() {
+        return ultimasPalabras;
+    }
+
     public String[][] getMatriz() { return M; }
 
+    //Devuelve un número al azar entre 0 y limite-1
     private int azar(int limite) {
         return (int) Math.floor(Math.random() * limite);
     }
 
+    //Rellena la matriz con letras al azar incluyendo la Ñ
     private void inicializaMatrices() {
         String cadena = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
         String[] letra = cadena.split("");
@@ -64,6 +104,7 @@ public class Controlador {
         }
     }
 
+    //Dirección 0: izquierda → derecha
     private boolean colocarPalabra0(String[] word) {
         int f = azar(M.length);
         int L = word.length;
@@ -79,6 +120,7 @@ public class Controlador {
         return permitido;
     }
 
+    //Dirección 2: arriba → abajo
     private boolean colocarPalabra2(String[] word) {
         int L = word.length;
         if (M.length - L + 1 <= 0) return false;
@@ -94,6 +136,7 @@ public class Controlador {
         return permitido;
     }
 
+    //Dirección 4: derecha → izquierda
     private boolean colocarPalabra4(String[] word) {
         int f = azar(M.length);
         int L = word.length;
@@ -109,6 +152,7 @@ public class Controlador {
         return permitido;
     }
 
+    //Dirección 6: abajo → arriba
     private boolean colocarPalabra6(String[] word) {
         int L = word.length;
         if (M.length - L + 1 <= 0) return false;
@@ -124,6 +168,7 @@ public class Controlador {
         return permitido;
     }
 
+    //Dirección 1: diagonal sur-este ↘
     private boolean colocarPalabra1(String[] word) {
         int L = word.length;
         int f = azar(M.length);
@@ -139,6 +184,7 @@ public class Controlador {
         return permitido;
     }
 
+    //Dirección 5: diagonal sur-este invertida ↘ al revés
     private boolean colocarPalabra5(String[] word) {
         int L = word.length;
         int f = azar(M.length);
@@ -154,6 +200,7 @@ public class Controlador {
         return permitido;
     }
 
+    //Dirección 3: diagonal sur-oeste ↙
     private boolean colocarPalabra3(String[] word) {
         int L = word.length;
         int f = azar(M.length);
@@ -169,6 +216,7 @@ public class Controlador {
         return permitido;
     }
 
+    //Dirección 7: diagonal sur-oeste invertida ↙ al revés
     private boolean colocarPalabra7(String[] word) {
         int L = word.length;
         int f = azar(M.length);

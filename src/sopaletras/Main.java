@@ -17,11 +17,25 @@ public class Main {
         Vista       vista       = new Vista();
 
         //BOTÓN AÑADIR
-        //Lee la palabra del campo, la guarda en BD y refresca la lista
+        //Valida la entrada y guarda la palabra en BD si es correcta
         vista.addListenerAñadir(e -> {
             String palabra = vista.getPalabra();
+
+            //Validación 1: campo vacío
             if (palabra.isEmpty()) {
                 vista.mostrarMensaje("Escribe una palabra antes de añadir.");
+                return;
+            }
+            //Validación 2: solo letras, sin números ni caracteres especiales
+            if (!palabra.matches("[A-ZÁÉÍÓÚÜÑ]+")) {
+                vista.mostrarMensaje("Solo se permiten letras, sin caracteres especiales.");
+                vista.limpiarCampo();
+                return;
+            }
+            //Validación 3: palabra repetida
+            if (modelo.existePalabra(palabra)) {
+                vista.mostrarMensaje("La palabra '" + palabra + "' ya existe en la BD.");
+                vista.limpiarCampo();
                 return;
             }
             boolean ok = modelo.añadirPalabra(palabra);
@@ -63,7 +77,6 @@ public class Main {
 
         //BOTÓN GENERAR SOPA
         //Modelo → palabras → Controlador → matriz → Vista
-        //También pasa las palabras a la Vista para comprobar aciertos al jugar
         vista.addListenerGenerar(e -> {
             List<String> palabras = modelo.obtenerPalabras();
             if (palabras.isEmpty()) {
@@ -73,6 +86,27 @@ public class Main {
             String[][] matriz = controlador.generarSopa(palabras);
             vista.mostrarSopa(matriz);
             vista.setPalabrasDB(palabras); //Palabras para comprobar aciertos
+        });
+
+        //BOTÓN BUSCAR PALABRA
+        //Busca la palabra seleccionada en la lista y la marca en naranja
+        vista.addListenerBuscar(e -> {
+            String seleccionada = vista.getPalabraSeleccionada();
+            if (seleccionada == null) {
+                vista.mostrarMensaje("Selecciona una palabra de la lista para buscarla.");
+                return;
+            }
+            vista.buscarYMarcarPalabra(seleccionada);
+        });
+
+        //BOTÓN VER SOLUCIÓN
+        //Marca todas las palabras de la sopa en verde automáticamente
+        vista.addListenerSolucion(e -> {
+            if (modelo.obtenerPalabras().isEmpty()) {
+                vista.mostrarMensaje("Genera una sopa primero.");
+                return;
+            }
+            vista.mostrarSolucion();
         });
 
         //Cerramos la conexión a la BD al cerrar la ventana

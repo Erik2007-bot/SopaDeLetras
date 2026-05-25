@@ -13,7 +13,7 @@ public class Modelo {
     //Datos de conexión a MariaDB
     private static final String URL      = "jdbc:mariadb://localhost:3306/sopaletras";
     private static final String USUARIO  = "root";
-    private static final String PASSWORD = "";  
+    private static final String PASSWORD = "";
 
     private Connection conexion;
 
@@ -71,6 +71,21 @@ public class Modelo {
             System.err.println("ERROR al consultar palabras: " + e.getMessage());
         }
         return lista;
+    }
+
+    //Comprueba si una palabra ya existe en la BD para evitar duplicados
+    public boolean existePalabra(String palabra) {
+        String sql = "SELECT COUNT(*) FROM palabras WHERE palabra = ?";
+        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
+            ps.setString(1, palabra.toUpperCase());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) > 0; //Si COUNT > 0 la palabra ya existe
+            }
+        } catch (SQLException e) {
+            System.err.println("ERROR al comprobar palabra: " + e.getMessage());
+        }
+        return false;
     }
 
     //Cierra la conexión con la BD
